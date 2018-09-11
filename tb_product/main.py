@@ -11,7 +11,7 @@ from urllib import request
 from selenium import webdriver
 #from bs4 import BeautifulSoup
 #import http
-#import re
+##import re
 import os
 import logging
 import sys
