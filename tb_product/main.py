@@ -1,22 +1,18 @@
 # coding=gbk
 
 # 获取指定页面的商品图片并保存
-#
-#import urllib.request
-#import requests
 import time
 from datetime import datetime as dt
 from urllib import parse
 from urllib import request
 from selenium import webdriver
-#from bs4 import BeautifulSoup
-##import http
-##import re
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 import os
 import logging
 import sys
-import json
-import sqlite3
 
 # 获取logger实例，如果参数为空则返回root logger
 logger = logging.getLogger("sync-taobao")
@@ -56,25 +52,79 @@ def log(msg):
     logger.debug(msg)
 
 def getProductInfo(url, browser):
-    log(url)
+    # 打开商品页面
     browser.get(url)
-    time.sleep(5)
 
+    title = browser.find_element_by_xpath('//*[@id="mod-detail-title"]/h1').text
     # 判断是否存在下载目录，如果不存在，创建
     if not os.path.exists('images'):
         os.mkdir('images')
-
-    title = browser.find_element_by_xpath('//*[@id="mod-detail-title"]/h1').text
     if not os.path.exists('images/'+title):
-        os.mkdir('images/'+title)
+        os.mkdir('images/' + title)
+    if not os.path.exists('images/' + title + '/title'):
+        os.mkdir('images/' + title + '/title')
+
+    # 获取抬头的图片
+    getProductTitleImgs(url, browser, title)
+
+    # 获取明细中的图片
+    getProductDetailImgs(url, browser, title)
+
+def getProductTitleImgs(url, browser, title):
+    titleImgUrl = url.replace('offer', 'pic')
+    log(titleImgUrl)
+    browser.get(titleImgUrl)
+
+    try:
+        element = WebDriverWait(browser, 5).until(
+            EC.presence_of_element_located((By.ID, "dt-bp-tabnavnext"))
+        )
+        tryNum = 0
+        while tryNum < 5:
+            browser.execute_script("document.getElementById('dt-bp-tabnavnext').click()")
+            time.sleep(1)
+            tryNum = tryNum + 1
+    except:
+        log('需要登陆验证，无法打开抬头')
+        return
+
+    urltmp = '//*[@id="dt-bp-tab-nav"]/div/ul/li'
+    imagea = browser.find_elements_by_xpath(urltmp)
+    index = 0
+    while index <= imagea.__len__():
+        urltmp = '//*[@id="dt-bp-tab-nav"]/div/ul/li['+str(index)+']/div/a/img'
+        images = browser.find_elements_by_xpath(urltmp)
+        for image in images:
+            imgUrl = str(image.get_attribute("src")).replace('64x64.', '').replace('_.webp', '')
+            log(str(index) + ':' + imgUrl)
+            request.urlretrieve(imgUrl, './images/' + title + '/title/' + str(index) + '.jpg')
+        index = index + 1
+
+def getProductDetailImgs(url, browser, title):
+    log(url)
+    browser.get(url)
+    time.sleep(3)
 
     # 将页面滚动条拖到底部
-    js = "var q=document.documentElement.scrollTop=10000"
-    browser.execute_script(js)
-    time.sleep(15)
+    tryNum = 0
+    while tryNum < 5:
+        try:
+            element = WebDriverWait(browser, 1).until(
+                EC.presence_of_element_located((By.ID, "sufei-dialog-close"))
+            )
+            browser.execute_script("document.getElementById('sufei-dialog-close').click()")
+        except:
+            log('没有验证窗口')
 
+        js = "var q=document.documentElement.scrollTop=" + str(10000 + tryNum * 5000)
+        browser.execute_script(js)
+        tryNum = tryNum + 1
+        time.sleep(1)
+
+    urltmp = '//*[@id="desc-lazyload-container"]/p'
+    imageP = browser.find_elements_by_xpath(urltmp)
     index = 0
-    while index < 200:
+    while index < imageP.__len__():
         urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/span/strong/span/img'
         images = browser.find_elements_by_xpath(urltmp)
         if images.__len__() == 0:
@@ -83,9 +133,15 @@ def getProductInfo(url, browser):
         if images.__len__() == 0:
             urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/span/img'
             images = browser.find_elements_by_xpath(urltmp)
+        if images.__len__() == 0:
+            urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/strong/span/img'
+            images = browser.find_elements_by_xpath(urltmp)
+        if images.__len__() == 0:
+            urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/span/strong/img'
+            images = browser.find_elements_by_xpath(urltmp)
         imageIndex = 1
         for image in images:
-            log(image.get_attribute("src"))
+            log(str(imageIndex) + ':' + image.get_attribute("src"))
             request.urlretrieve(image.get_attribute("src"), './images/' + title + '/' + str(imageIndex) + '.jpg')
             imageIndex = imageIndex + 1
         index = index + 1
