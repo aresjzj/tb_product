@@ -125,12 +125,15 @@ def getProductDetailImgs(url, browser, title):
     images = browser.find_elements_by_xpath(urltmp)
     imageIndex = 1
     for image in images:
-        log(str(imageIndex) + ':' + image.get_attribute("src"))
-        request.urlretrieve(image.get_attribute("src"), './images/' + title + '/' + str(imageIndex) + '.jpg')
-        imageIndex = imageIndex + 1
+        imageUrl = image.get_attribute("src")
+        file = os.path.splitext(imageUrl)
+        filename, type = file
+        log(str(imageIndex) + ':' + imageUrl)
+        if type == '.jpg':
+            request.urlretrieve(imageUrl, './images/' + title + '/' + str(imageIndex) + type)
+            imageIndex = imageIndex + 1
 
-def readConfig():
-    filename = 'url.txt'
+def readConfig(filename):
     urls = []
     with open(filename, 'r') as file_to_read:
         while True:
@@ -141,12 +144,48 @@ def readConfig():
             urls.append(line)
     return urls
 
+productList = []
+
+# 读取"所有产品"画面，将所有的产品明细列表写入url.txt
+def writeUrlConfig(urlOfferList, browser):
+    log(urlOfferList)
+    browser.get(urlOfferList)
+
+    urltmp = "//*[@id='search-bar']/div[2]/div/div/div/ul/li"
+    imageCount = browser.find_elements_by_xpath(urltmp).__len__()
+    imageIndex = 0
+    while imageIndex < imageCount:
+        urltmp = "//*[@id='search-bar']/div[2]/div/div/div/ul/li[" + str(imageIndex) + "]/div[1]/a"
+        imageUrls = browser.find_elements_by_xpath(urltmp)
+        for productUrl in imageUrls:
+            productList.append(productUrl.get_attribute('href')+'\n')
+        imageIndex = imageIndex + 1
+
+    try:
+        element = WebDriverWait(browser, 5).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "next"))
+        )
+        nextPageUrl = browser.find_element_by_class_name("next").get_attribute('href')
+        writeUrlConfig(nextPageUrl, browser)
+    except:
+        log('画面读取完毕')
+        return
+
 if __name__ == '__main__':
     log("/_/_/_/_/_/_/_/_/_/_任务开始/_/_/_/_/_/_/_/_/_")
     headerOptions = getHeadersOptions()
     browser = getChromeBrowser(headerOptions)
     try:
-        urls = readConfig()
+        log("--读取<<所有产品>>画面开始--")
+        offerlist = readConfig('url-offerlist.txt')
+        for url in offerlist:
+            writeUrlConfig(url, browser)
+        if productList.__len__() > 0:
+            with open('url.txt', 'w') as file_to_write:
+                file_to_write.writelines(productList)
+        log("--读取<<所有产品>>画面结束--")
+
+        urls = readConfig('url.txt')
         for url in urls:
             getProductInfo(url, browser)
 
@@ -154,4 +193,4 @@ if __name__ == '__main__':
         log("任务被取消")
     log("/_/_/_/_/_/_/_/_/_/_任务结束/_/_/_/_/_/_/_/_/_")
 
-    browser.quit()
+    #browser.quit()
