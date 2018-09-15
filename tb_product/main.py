@@ -121,30 +121,13 @@ def getProductDetailImgs(url, browser, title):
         tryNum = tryNum + 1
         time.sleep(1)
 
-    urltmp = '//*[@id="desc-lazyload-container"]/p'
-    imageP = browser.find_elements_by_xpath(urltmp)
-    index = 0
-    while index < imageP.__len__():
-        urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/span/strong/span/img'
-        images = browser.find_elements_by_xpath(urltmp)
-        if images.__len__() == 0:
-            urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/span/strong/img'
-            images = browser.find_elements_by_xpath(urltmp)
-        if images.__len__() == 0:
-            urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/span/img'
-            images = browser.find_elements_by_xpath(urltmp)
-        if images.__len__() == 0:
-            urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/strong/span/img'
-            images = browser.find_elements_by_xpath(urltmp)
-        if images.__len__() == 0:
-            urltmp = '//*[@id="desc-lazyload-container"]/p[' + str(index) + ']/span/strong/img'
-            images = browser.find_elements_by_xpath(urltmp)
-        imageIndex = 1
-        for image in images:
-            log(str(imageIndex) + ':' + image.get_attribute("src"))
-            request.urlretrieve(image.get_attribute("src"), './images/' + title + '/' + str(imageIndex) + '.jpg')
-            imageIndex = imageIndex + 1
-        index = index + 1
+    urltmp = '//*[@id="desc-lazyload-container"]//img'
+    images = browser.find_elements_by_xpath(urltmp)
+    imageIndex = 1
+    for image in images:
+        log(str(imageIndex) + ':' + image.get_attribute("src"))
+        request.urlretrieve(image.get_attribute("src"), './images/' + title + '/' + str(imageIndex) + '.jpg')
+        imageIndex = imageIndex + 1
 
 def readConfig():
     filename = 'url.txt'
